@@ -6,3 +6,5 @@
 1_basic_statistic_tools/\.ipynb_checkpoints/
 
 5_flutter_analysis_tools/*.pyc
+
+5_flutter_analysis_tools/__pycache__/
