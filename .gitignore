@@ -4,3 +4,5 @@
 2_extreme_value_analysis_tools/__pycache__/
 
 1_basic_statistic_tools/\.ipynb_checkpoints/
+
+5_flutter_analysis_tools/*.pyc
