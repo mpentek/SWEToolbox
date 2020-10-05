@@ -107,9 +107,45 @@ class FlutterDerivatives():
         
         if delta_t != None:
             self.delta_t = delta_t
+
+    
+    def calculate_derivatives_from_forced_motion(self,
+                    heave=None, pitch=None, sway=None,
+                    lift=None, moment=None, drag=None,
+                    U=None, B=None, delta_t=None):
         
+        # Start checking simulation parameters
+        U, B, delta_t = self.fill_with_default_simulation_parameters(U, B, delta_t)
+
+    def calculate_single_derivative_pair_from_forced_motion(self):
+
+        pass
 
 
+    def fill_with_default_simulation_parameters(self, U, B, delta_t):
+
+        msg = 'The variable {} has no default value. It is necessary '
+        msg = 'to provide a particular one when calling the function.'
+
+        if U == None:
+            if self.U != None:
+                U = self.U
+            else:
+                raise Exception(msg.format('U'))
+        if B == None:
+            if self.B != None:
+                B = self.B
+            else:
+                raise Exception(msg.format('B'))
+        if delta_t == None:
+            if self.delta_t != None:
+                delta_t = self.delta_t
+            else:
+                raise Exception(msg.format('delta_t'))
+
+        return(U, B, delta_t)
+
+        
 def complex2real_notation(fd_complex):
 
     fd_real = {'H1':{'values':[],'U_red':[]},
