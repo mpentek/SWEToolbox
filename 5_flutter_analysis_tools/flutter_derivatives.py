@@ -95,6 +95,18 @@ class FlutterDerivatives():
 
         elif deriv in self.fd_complex.keys():
             return self.fd_real[deriv]['values'], self.fd_real[deriv]['k']
+
+    
+    def set_default_parameters(self, U=None, B=None, delta_t=None):
+
+        if U != None:
+            self.U = U
+        
+        if B != None:
+            self.B = B
+        
+        if delta_t != None:
+            self.delta_t = delta_t
         
 
 
