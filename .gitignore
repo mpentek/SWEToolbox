@@ -10,3 +10,5 @@
 5_flutter_analysis_tools/__pycache__/
 
 prepare_test_data.py
+
+example_data/
