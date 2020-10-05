@@ -6,29 +6,24 @@ class FlutterDerivatives():
 
     def __init__(self, default_notation='real'):
 
+        # Notation default settings
         self.available_notations = ['real', 'complex']
-
         self.check_notation(default_notation)
-
         self.default_notation = default_notation
         
-        self.fd_real = {
-            'H1':{'values':[], 'U_red':[]},
-            'H2':{'values':[], 'U_red':[]},
-            'H3':{'values':[], 'U_red':[]},
-            'H4':{'values':[], 'U_red':[]},
-            'A1':{'values':[], 'U_red':[]},
-            'A2':{'values':[], 'U_red':[]},
-            'A3':{'values':[], 'U_red':[]},
-            'A4':{'values':[], 'U_red':[]}
-        }
+        # Creating derivatives' dictionary (real notation)
+        self.fd_real = {}
+        real_data_struct = {'values':[], 'U_red':[]}
+        for letter in ['H', 'A', 'P']:
+            for number in range(1,7):
+                self.fd_real[letter+str(number)] = real_data_struct
 
-        self.fd_complex = {
-            'c_aa':{'values':[],'k':[]},
-            'c_ah':{'values':[],'k':[]},
-            'c_ha':{'values':[],'k':[]},
-            'c_hh':{'values':[],'k':[]}
-        }
+        # Creating derivatives' dictionary (complex notation)
+        self.fd_complex = {}
+        complex_data_struct = {'values':[],'k':[]}
+        for letter_1 in ['h', 'a', 'p']:
+            for letter_2 in ['h', 'a', 'p']:
+                self.fd_complex[letter_1+letter_2] = complex_data_struct
 
 
     def check_notation(self, notation):
@@ -44,6 +39,10 @@ class FlutterDerivatives():
         self.check_notation(new_notation)
 
         self.default_notation = new_notation
+
+    
+    def reset_from_dictionary(self, dict):
+        pass
 
 
     def clean_derivative(self, deriv):
