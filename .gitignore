@@ -12,3 +12,5 @@
 prepare_test_data.py
 
 5_flutter_analysis_tools/example_data/
+
+5_flutter_analysis_tools/\.ipynb_checkpoints/
