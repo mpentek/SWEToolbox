@@ -109,43 +109,79 @@ class FlutterDerivatives():
             self.delta_t = delta_t
 
     
-    def calculate_derivatives_from_forced_motion(self,
-                    heave=None, pitch=None, sway=None,
-                    lift=None, moment=None, drag=None,
-                    U=None, B=None, delta_t=None):
+    def calculate_derivatives_from_forced_motion(self, **kwargs):
+                    #heave=None, pitch=None, sway=None,
+                    #lift=None, moment=None, drag=None,
+                    #U=None, B=None, delta_t=None):
         
         # Start checking simulation parameters
-        U, B, delta_t = self.fill_with_default_simulation_parameters(U, B, delta_t)
+        U, B, delta_t = self.fill_with_default_simulation_parameters(**kwargs)
+
+        # Check that the right motion and force time series have been provided
+        self-check_motion_force_input(**kwargs)
+        
 
     def calculate_single_derivative_pair_from_forced_motion(self):
-
         pass
 
 
-    def fill_with_default_simulation_parameters(self, U, B, delta_t):
+    def fill_with_default_simulation_parameters(self, **kwargs):
 
-        msg = 'The variable {} has no default value. It is necessary '
-        msg = 'to provide a particular one when calling the function.'
+        msg = 'The variable "{}" has no default value. It is necessary '
+        msg += 'to provide a particular one when calling the function.'
 
-        if U == None:
-            if self.U != None:
+        if 'U' in kwargs:
+            U = kwargs['U']
+        else:
+            if getattr(self, 'U', None) != None:
                 U = self.U
             else:
                 raise Exception(msg.format('U'))
-        if B == None:
-            if self.B != None:
+
+        if 'B' in kwargs:
+            B = kwargs['B']
+        else:
+            if getattr(self, 'B', None) != None:
                 B = self.B
             else:
                 raise Exception(msg.format('B'))
-        if delta_t == None:
-            if self.delta_t != None:
+
+        if 'delta_t' in kwargs:
+            delta_t = kwargs['delta_t']
+        else:
+            if getattr(self, 'delta_t', None) != None:
                 delta_t = self.delta_t
             else:
                 raise Exception(msg.format('delta_t'))
 
         return(U, B, delta_t)
 
-        
+
+    def check_motion_force_input(self, **kwargs):
+
+        # Check that only one motion is provided
+        motions = {'heave', 'pitch', 'sway'}
+        if len(motions.intersection(kwargs)) == 0:
+            msg = 'No motion time series provided. '
+            msg += 'Please provide one of the following variables: '
+            msg += str(motions)
+            raise Exception(msg)
+        elif len(motions.intersection(kwargs)) > 1:
+            # TODO: This 'elif' would need to be suppressed if the function
+            # is adapted to calculate from multi-direction simulations
+            msg = 'Too many motion time series provided. '
+            msg += 'Please provide only the excited motion time series.'
+            raise Exception(msg)
+
+        # Check that at least one force is provided
+        forces = {'lift', 'moment', 'drag'}
+        if len(forces.intersection(kwargs)) == 0:
+            msg = 'No force time series provided. '
+            msg += 'Please provide at least one of the following variables: '
+            msg += str(forces)
+            raise Exception(msg)
+
+
 def complex2real_notation(fd_complex):
 
     fd_real = {'H1':{'values':[],'U_red':[]},
