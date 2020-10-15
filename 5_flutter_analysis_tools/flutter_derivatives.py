@@ -8,7 +8,7 @@ class FlutterDerivatives():
 
         # Notation default settings
         self.available_notations = ['real', 'complex']
-        self.check_notation(default_notation)
+        self._check_notation(default_notation)
         self.default_notation = default_notation
         
         # Initializing dictionaries with the derivatives' data
@@ -18,6 +18,8 @@ class FlutterDerivatives():
 
 
     def reset_all_derivatives(self):
+
+        #flutter_deriv = {'real':{}, 'complex':{}}
         
         # Creating/Overwriting derivatives dictionary (real notation)
         self.fd_real = {}
@@ -29,12 +31,12 @@ class FlutterDerivatives():
         self.fd_complex = {}
         for letter_1 in ['h', 'a', 'p']:
             for letter_2 in ['h', 'a', 'p']:
-                self.fd_complex[letter_1+letter_2] = self.complex_data_struct
+                self.fd_complex['c_'+letter_1+letter_2] = self.complex_data_struct
 
 
     def reset_derivative(self, deriv):
 
-        self.check_derivative_name(deriv)
+        self._check_derivative_name(deriv)
         
         if deriv in list(self.fd_real.keys()):
             self.fd_real[deriv] = self.real_data_struct
@@ -46,7 +48,7 @@ class FlutterDerivatives():
         pass
 
     
-    def check_derivative_name(self, deriv):
+    def _check_derivative_name(self, deriv):
 
         real_deriv_names = list(self.fd_real.keys())
         complex_deriv_names = list(self.fd_complex.keys())
@@ -58,7 +60,7 @@ class FlutterDerivatives():
             raise Exception(msg)
 
 
-    def check_notation(self, notation):
+    def _check_notation(self, notation):
         
         if notation not in self.available_notations:
             msg = 'The requested notation is not among the available ones.'
@@ -68,7 +70,7 @@ class FlutterDerivatives():
     
     def change_default_notation(self, new_notation):
 
-        self.check_notation(new_notation)
+        self._check_notation(new_notation)
         self.default_notation = new_notation
 
 
@@ -77,7 +79,7 @@ class FlutterDerivatives():
         if notation == 'default':
             notation = self.default_notation
 
-        self.check_notation(notation)
+        self._check_notation(notation)
         
         if notation == 'real':
             return self.fd_real
@@ -88,7 +90,7 @@ class FlutterDerivatives():
 
     def get_derivative(self, deriv):
 
-        self.check_derivative_name(deriv)
+        self._check_derivative_name(deriv)
         
         if deriv in self.fd_real.keys():
             return self.fd_real[deriv]['values'], self.fd_real[deriv]['U_red']
@@ -115,17 +117,25 @@ class FlutterDerivatives():
                     #U=None, B=None, delta_t=None):
         
         # Start checking simulation parameters
-        U, B, delta_t = self.fill_with_default_simulation_parameters(**kwargs)
+        sim_params = self._fill_with_default_simulation_parameters(**kwargs)
 
         # Check that the right motion and force time series have been provided
-        self-check_motion_force_input(**kwargs)
+        provided_motion, provided_forces = self._check_motion_force_input(**kwargs)
+
+        # Calculating derivatives pair by pair (with the motion and one force)
+        for force_name in provided_forces:
+            self._calculate_derivative_pair_from_forced_motion(sim_params, provided_motion, force_name, kwargs)
         
 
-    def calculate_single_derivative_pair_from_forced_motion(self):
-        pass
+    def _calculate_derivative_pair_from_forced_motion(self, sim_params, m_name, f_name, data):
+
+        motion = data[m_name]
+        force = data[f_name]
+
+        print(m_name, f_name)
 
 
-    def fill_with_default_simulation_parameters(self, **kwargs):
+    def _fill_with_default_simulation_parameters(self, **kwargs):
 
         msg = 'The variable "{}" has no default value. It is necessary '
         msg += 'to provide a particular one when calling the function.'
@@ -157,16 +167,17 @@ class FlutterDerivatives():
         return(U, B, delta_t)
 
 
-    def check_motion_force_input(self, **kwargs):
+    def _check_motion_force_input(self, **kwargs):
 
         # Check that only one motion is provided
-        motions = {'heave', 'pitch', 'sway'}
-        if len(motions.intersection(kwargs)) == 0:
+        motion_names = {'heave', 'pitch', 'sway'}
+        provided_motion = motion_names.intersection(kwargs)
+        if len(provided_motion) == 0:
             msg = 'No motion time series provided. '
             msg += 'Please provide one of the following variables: '
-            msg += str(motions)
+            msg += str(motion_names)
             raise Exception(msg)
-        elif len(motions.intersection(kwargs)) > 1:
+        elif len(provided_motion) > 1:
             # TODO: This 'elif' would need to be suppressed if the function
             # is adapted to calculate from multi-direction simulations
             msg = 'Too many motion time series provided. '
@@ -174,14 +185,51 @@ class FlutterDerivatives():
             raise Exception(msg)
 
         # Check that at least one force is provided
-        forces = {'lift', 'moment', 'drag'}
-        if len(forces.intersection(kwargs)) == 0:
+        force_names = {'lift', 'moment', 'drag'}
+        provided_forces = force_names.intersection(kwargs)
+        if len(provided_forces) == 0:
             msg = 'No force time series provided. '
             msg += 'Please provide at least one of the following variables: '
-            msg += str(forces)
+            msg += str(force_names)
             raise Exception(msg)
 
+        return list(provided_motion)[0], list(provided_forces)
 
+
+        def _get_derivatives_to_calculate(m_name, f_name):
+            
+            derivs_to_calc = {}
+
+            if m_name == 'heave':
+                real_indexes = [1,4]
+                complex_letter_2 = 'h'
+            elif m_name == 'pitch':
+                real_indexes = [2,3]
+                complex_letter_2 = 'a'
+            elif m_name == 'sway':
+                real_indexes = [5,6]
+                complex_letter_2 = 'p'
+
+            if f_name == 'lift':
+                real_letter = 'H'
+                complex_letter_1 = 'h'
+            elif f_name == 'moment':
+                real_letter = 'A'
+                complex_letter_1 = 'a'
+            elif f_name == 'drag':
+                real_letter = 'P'
+                if m_name == 'heave':
+                    real_indexes = [5,6]
+                elif m_name == 'sway':
+                    real_indexes = [1,4]
+                complex_letter_1 = 'p'
+            
+            derivs_to_calc['real'] = [real_letter+str(real_indexes[0]), real_letter+str(real_indexes[1])]
+            derivs_to_calc['complex'] = 'c_' + complex_letter_1 + complex_letter_2
+
+            return derivs_to_calc
+
+            
 def complex2real_notation(fd_complex):
 
     fd_real = {'H1':{'values':[],'U_red':[]},
