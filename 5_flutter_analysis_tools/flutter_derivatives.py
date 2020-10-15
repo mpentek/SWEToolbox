@@ -19,29 +19,29 @@ class FlutterDerivatives():
 
     def reset_all_derivatives(self):
 
-        #flutter_deriv = {'real':{}, 'complex':{}}
+        flutter_deriv = {'real':{}, 'complex':{}}
         
         # Creating/Overwriting derivatives dictionary (real notation)
-        self.fd_real = {}
+        self.flutter_deriv['real'] = {}
         for letter in ['H', 'A', 'P']:
             for number in range(1,7):
-                self.fd_real[letter+str(number)] = self.real_data_struct
+                self.flutter_deriv['real'][letter+str(number)] = self.real_data_struct
 
         # Creating/Overwriting derivatives dictionary (complex notation)
-        self.fd_complex = {}
+        self.flutter_deriv['complex'] = {}
         for letter_1 in ['h', 'a', 'p']:
             for letter_2 in ['h', 'a', 'p']:
-                self.fd_complex['c_'+letter_1+letter_2] = self.complex_data_struct
+                self.flutter_deriv['complex']['c_'+letter_1+letter_2] = self.complex_data_struct
 
 
     def reset_derivative(self, deriv):
 
         self._check_derivative_name(deriv)
         
-        if deriv in list(self.fd_real.keys()):
-            self.fd_real[deriv] = self.real_data_struct
-        elif deriv in list(self.fd_complex.keys()):
-            self.fd_complex[deriv] = self.complex_data_struct
+        if deriv in list(self.flutter_deriv['real'].keys()):
+            self.flutter_deriv['real'][deriv] = self.real_data_struct
+        elif deriv in list(self.flutter_deriv['complex'].keys()):
+            self.flutter_deriv['complex'][deriv] = self.complex_data_struct
 
     
     def reset_from_dictionary(self, dict):
@@ -50,8 +50,8 @@ class FlutterDerivatives():
     
     def _check_derivative_name(self, deriv):
 
-        real_deriv_names = list(self.fd_real.keys())
-        complex_deriv_names = list(self.fd_complex.keys())
+        real_deriv_names = list(self.flutter_deriv['real'].keys())
+        complex_deriv_names = list(self.flutter_deriv['complex'].keys())
             
         if deriv not in real_deriv_names or deriv not in complex_deriv_names:
             msg = 'Derivative name not recognised. '
@@ -81,22 +81,18 @@ class FlutterDerivatives():
 
         self._check_notation(notation)
         
-        if notation == 'real':
-            return self.fd_real
-
-        elif notation == 'complex':
-            return self.fd_complex
+        return self.flutter_deriv[notation]
 
 
     def get_derivative(self, deriv):
 
         self._check_derivative_name(deriv)
         
-        if deriv in self.fd_real.keys():
-            return self.fd_real[deriv]['values'], self.fd_real[deriv]['U_red']
+        if deriv in self.flutter_deriv['real'].keys():
+            return self.flutter_deriv['real'][deriv]['values'], self.flutter_deriv['real'][deriv]['U_red']
 
-        elif deriv in self.fd_complex.keys():
-            return self.fd_real[deriv]['values'], self.fd_real[deriv]['k']
+        elif deriv in self.flutter_deriv['complex'].keys():
+            return self.flutter_deriv['complex'][deriv]['values'], self.flutter_deriv['complex'][deriv]['k']
 
     
     def set_default_parameters(self, U=None, B=None, delta_t=None):
