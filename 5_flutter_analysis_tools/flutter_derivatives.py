@@ -1,5 +1,6 @@
 
 import numpy as np
+import sinusoidal_utilities as sin_util
 
 
 class FlutterDerivatives():
@@ -12,26 +13,24 @@ class FlutterDerivatives():
         self.default_notation = default_notation
         
         # Initializing dictionaries with the derivatives' data
-        self.real_data_struct = {'values':[], 'U_red':[]}
-        self.complex_data_struct = {'values':[],'k':[]}
         self.reset_all_derivatives()
 
 
     def reset_all_derivatives(self):
 
-        flutter_deriv = {'real':{}, 'complex':{}}
+        self.flutter_deriv = {'real':{}, 'complex':{}}
         
         # Creating/Overwriting derivatives dictionary (real notation)
         self.flutter_deriv['real'] = {}
         for letter in ['H', 'A', 'P']:
             for number in range(1,7):
-                self.flutter_deriv['real'][letter+str(number)] = self.real_data_struct
+                self.flutter_deriv['real'][letter+str(number)] = {'values':[], 'Ured':[]}
 
         # Creating/Overwriting derivatives dictionary (complex notation)
         self.flutter_deriv['complex'] = {}
         for letter_1 in ['h', 'a', 'p']:
             for letter_2 in ['h', 'a', 'p']:
-                self.flutter_deriv['complex']['c_'+letter_1+letter_2] = self.complex_data_struct
+                self.flutter_deriv['complex']['c_'+letter_1+letter_2] = {'values':[],'k':[]}
 
 
     def reset_derivative(self, deriv):
@@ -39,9 +38,9 @@ class FlutterDerivatives():
         self._check_derivative_name(deriv)
         
         if deriv in list(self.flutter_deriv['real'].keys()):
-            self.flutter_deriv['real'][deriv] = self.real_data_struct
+            self.flutter_deriv['real'][deriv] = {'values':[], 'Ured':[]}
         elif deriv in list(self.flutter_deriv['complex'].keys()):
-            self.flutter_deriv['complex'][deriv] = self.complex_data_struct
+            self.flutter_deriv['complex'][deriv] = {'values':[],'k':[]}
 
     
     def reset_from_dictionary(self, dict):
@@ -95,7 +94,7 @@ class FlutterDerivatives():
             return self.flutter_deriv['complex'][deriv]['values'], self.flutter_deriv['complex'][deriv]['k']
 
     
-    def set_default_parameters(self, U=None, B=None, delta_t=None):
+    def set_default_parameters(self, U=None, B=None, delta_t=None, air_dens=None):
 
         if U != None:
             self.U = U
@@ -106,6 +105,9 @@ class FlutterDerivatives():
         if delta_t != None:
             self.delta_t = delta_t
 
+        if air_dens != None:
+            self.air_dens = air_dens
+
     
     def calculate_derivatives_from_forced_motion(self, **kwargs):
                     #heave=None, pitch=None, sway=None,
@@ -113,22 +115,61 @@ class FlutterDerivatives():
                     #U=None, B=None, delta_t=None):
         
         # Start checking simulation parameters
+        # TODO: consider simply changing the kwargs dictionary with the filled parameters
         sim_params = self._fill_with_default_simulation_parameters(**kwargs)
 
         # Check that the right motion and force time series have been provided
         provided_motion, provided_forces = self._check_motion_force_input(**kwargs)
 
         # Calculating derivatives pair by pair (with the motion and one force)
-        for force_name in provided_forces:
-            self._calculate_derivative_pair_from_forced_motion(sim_params, provided_motion, force_name, kwargs)
+        for provided_force in provided_forces:
+            self._calculate_derivative_pair_from_forced_motion(sim_params, provided_motion, provided_force, kwargs)
         
 
     def _calculate_derivative_pair_from_forced_motion(self, sim_params, m_name, f_name, data):
 
         motion = data[m_name]
         force = data[f_name]
+        time = [i*sim_params['delta_t'] for i in range(len(motion))]
 
-        print(m_name, f_name)
+        motion_ampl, phi, omega = sin_util.extract_sinusoidal_parameters(time, motion)
+
+        time_lag = phi/omega
+        time += time_lag
+
+        a, b, c = sin_util.extract_sinusoidal_parameters(time, force, omega=omega, function='sin_cos')
+        print(omega)
+
+        derivs_to_calc = self._get_derivatives_to_calculate(m_name, f_name)
+
+        f0_real = 2/(sim_params['air_dens']*omega**2*sim_params['B']**2*motion_ampl)
+        f0_complex = 4*f0_real/np.pi
+
+        if m_name == 'pitch':
+            f1_real = 1/sim_params['B']
+            f1_complex = 2*f1_real
+        else:
+            f1_real = 1
+            f1_complex = 1
+
+        if f_name == 'moment':
+            f2_real = 1/sim_params['B']
+            f2_complex = 2*f1_real
+        else:
+            f2_real = 1
+            f2_complex = 1
+
+        freq = omega/2/np.pi
+        Ured = sim_params['U']/freq/sim_params['B']
+        k = omega*sim_params['B']/2/sim_params['U']
+
+        self.flutter_deriv['real'][derivs_to_calc['real'][0]]['values'].append(b*f0_real*f1_real*f2_real)
+        self.flutter_deriv['real'][derivs_to_calc['real'][1]]['values'].append(c*f0_real*f1_real*f2_real)
+        self.flutter_deriv['complex'][derivs_to_calc['complex']]['values'].append(complex(c,b)*f0_complex*f1_complex*f2_complex)
+
+        self.flutter_deriv['real'][derivs_to_calc['real'][0]]['Ured'].append(Ured)
+        self.flutter_deriv['real'][derivs_to_calc['real'][1]]['Ured'].append(Ured)
+        self.flutter_deriv['complex'][derivs_to_calc['complex']]['k'].append(k)
 
 
     def _fill_with_default_simulation_parameters(self, **kwargs):
@@ -160,7 +201,17 @@ class FlutterDerivatives():
             else:
                 raise Exception(msg.format('delta_t'))
 
-        return(U, B, delta_t)
+        if 'air_dens' in kwargs:
+            air_dens = kwargs['air_dens']
+        else:
+            if getattr(self, 'air_dens', None) != None:
+                air_dens = self.air_dens
+            else:
+                raise Exception(msg.format('air_dens'))
+
+        sim_params = {'U':U, 'B':B, 'delta_t':delta_t, 'air_dens':air_dens}
+
+        return(sim_params)
 
 
     def _check_motion_force_input(self, **kwargs):
@@ -189,41 +240,43 @@ class FlutterDerivatives():
             msg += str(force_names)
             raise Exception(msg)
 
+        # TODO: check that all time series have the same length
+
         return list(provided_motion)[0], list(provided_forces)
 
 
-        def _get_derivatives_to_calculate(m_name, f_name):
-            
-            derivs_to_calc = {}
+    def _get_derivatives_to_calculate(self, m_name, f_name):
+        
+        derivs_to_calc = {}
 
+        if m_name == 'heave':
+            real_indexes = [1,4]
+            complex_letter_2 = 'h'
+        elif m_name == 'pitch':
+            real_indexes = [2,3]
+            complex_letter_2 = 'a'
+        elif m_name == 'sway':
+            real_indexes = [5,6]
+            complex_letter_2 = 'p'
+
+        if f_name == 'lift':
+            real_letter = 'H'
+            complex_letter_1 = 'h'
+        elif f_name == 'moment':
+            real_letter = 'A'
+            complex_letter_1 = 'a'
+        elif f_name == 'drag':
+            real_letter = 'P'
             if m_name == 'heave':
-                real_indexes = [1,4]
-                complex_letter_2 = 'h'
-            elif m_name == 'pitch':
-                real_indexes = [2,3]
-                complex_letter_2 = 'a'
-            elif m_name == 'sway':
                 real_indexes = [5,6]
-                complex_letter_2 = 'p'
+            elif m_name == 'sway':
+                real_indexes = [1,4]
+            complex_letter_1 = 'p'
+        
+        derivs_to_calc['real'] = [real_letter+str(real_indexes[0]), real_letter+str(real_indexes[1])]
+        derivs_to_calc['complex'] = 'c_' + complex_letter_1 + complex_letter_2
 
-            if f_name == 'lift':
-                real_letter = 'H'
-                complex_letter_1 = 'h'
-            elif f_name == 'moment':
-                real_letter = 'A'
-                complex_letter_1 = 'a'
-            elif f_name == 'drag':
-                real_letter = 'P'
-                if m_name == 'heave':
-                    real_indexes = [5,6]
-                elif m_name == 'sway':
-                    real_indexes = [1,4]
-                complex_letter_1 = 'p'
-            
-            derivs_to_calc['real'] = [real_letter+str(real_indexes[0]), real_letter+str(real_indexes[1])]
-            derivs_to_calc['complex'] = 'c_' + complex_letter_1 + complex_letter_2
-
-            return derivs_to_calc
+        return derivs_to_calc
 
             
 def complex2real_notation(fd_complex):
