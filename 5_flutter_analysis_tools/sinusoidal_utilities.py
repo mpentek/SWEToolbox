@@ -24,9 +24,8 @@ def extract_sinusoidal_parameters(x, y, omega=None, function='phase'):
         elif function == 'sin_cos':
             params, cov = curve_fit(sin_cos_func, x, y, p0=[0,1,1,omega_guess], bounds=([-np.inf, 0, 0], [np.inf, np.inf, np.inf]))
 
-        import matplotlib.pyplot as plt
-        plt.plot(x,y,x,sin_func(np.array(x), params[0], params[1], params[2]))
-        plt.show()
+        print('Freq guess: '+str(omega_guess/2/np.pi))
+        print('Freq final: '+str(params[-1]/2/np.pi))
 
     else:
 
@@ -39,8 +38,7 @@ def extract_sinusoidal_parameters(x, y, omega=None, function='phase'):
                 return a + b*np.cos(omega*t) + c*np.sin(omega*t)
 
         params, cov = curve_fit(custom_func, x, y)
-    
-    
+
     return params
 
 

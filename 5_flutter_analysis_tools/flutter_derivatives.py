@@ -1,7 +1,7 @@
 
 import numpy as np
 import sinusoidal_utilities as sin_util
-
+import warnings
 
 class FlutterDerivatives():
 
@@ -121,6 +121,9 @@ class FlutterDerivatives():
         # Check that the right motion and force time series have been provided
         provided_motion, provided_forces = self._check_motion_force_input(**kwargs)
 
+        # Check that the parameters have frequency data
+        sim_params['omega'] = self._check_frequency_input(**kwargs)
+
         # Calculating derivatives pair by pair (with the motion and one force)
         for provided_force in provided_forces:
             self._calculate_derivative_pair_from_forced_motion(sim_params, provided_motion, provided_force, kwargs)
@@ -132,13 +135,16 @@ class FlutterDerivatives():
         force = data[f_name]
         time = [i*sim_params['delta_t'] for i in range(len(motion))]
 
-        motion_ampl, phi, omega = sin_util.extract_sinusoidal_parameters(time, motion)
+        if sim_params['omega'] == None:
+            motion_ampl, phi, omega = sin_util.extract_sinusoidal_parameters(time, motion)
+        else:
+            omega = sim_params['omega']
+            motion_ampl, phi = sin_util.extract_sinusoidal_parameters(time, motion, omega=sim_params['omega'])
 
         time_lag = phi/omega
         time += time_lag
 
         a, b, c = sin_util.extract_sinusoidal_parameters(time, force, omega=omega, function='sin_cos')
-        print(omega)
 
         derivs_to_calc = self._get_derivatives_to_calculate(m_name, f_name)
 
@@ -243,6 +249,36 @@ class FlutterDerivatives():
         # TODO: check that all time series have the same length
 
         return list(provided_motion)[0], list(provided_forces)
+
+
+    def _check_frequency_input(self, **kwargs):
+        
+        possible_frequency_inputs = {'omega', 'frequency'}
+        provided_inputs = possible_frequency_inputs.intersection(kwargs)
+
+        if len(provided_inputs) == 1:
+            provided_input = list(provided_inputs)[0]
+            if provided_input == 'omega':
+                omega = kwargs['omega']
+            elif provided_input == 'frequency':
+                omega = kwargs['frequency']*2*np.pi
+
+        elif len(provided_inputs) == 0:
+            msg = 'No motion frequency was provided. '
+            msg += 'The frequency will be estimated from the motion time series instead. '
+            msg += 'However, the following results may be compromised, '
+            msg += 'even if the motion frequency is below the nyquist frequency.'
+            warnings.warn(msg)
+            omega = None
+        
+        else:
+            msg = 'More than one frequency inputs were given. '
+            msg += 'In order to avoid contradictions provide '
+            msg += 'only one of the following inputs: '
+            msg += str(possible_frequency_inputs)
+            raise Exception(msg)
+
+        return omega
 
 
     def _get_derivatives_to_calculate(self, m_name, f_name):
