@@ -6,12 +6,9 @@
 1_basic_statistic_tools/\.ipynb_checkpoints/
 
 5_flutter_analysis_tools/*.pyc
-
 5_flutter_analysis_tools/__pycache__/
-
-prepare_test_data.py
-
+5_flutter_analysis_tools/\.ipynb_checkpoints/
+5_flutter_analysis_tools/quick_check_*.py
 5_flutter_analysis_tools/example_data/
 
-5_flutter_analysis_tools/\.ipynb_checkpoints/
-5_flutter_analysis_tools/quick_check_fd.py
+prepare_test_data.py
