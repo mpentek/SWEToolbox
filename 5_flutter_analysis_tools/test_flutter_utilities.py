@@ -1,7 +1,7 @@
 
 import unittest
 import numpy as np
-from flutter_derivatives import *
+from flutter_utilities import *
 
 class TestComplex2RealNotation(unittest.TestCase):
 
