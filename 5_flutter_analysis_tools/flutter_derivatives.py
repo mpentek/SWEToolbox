@@ -1,6 +1,6 @@
 
 import numpy as np
-import sinusoidal_utilities as sin_util
+import flutter_utilities as util
 import warnings
 
 
@@ -110,12 +110,8 @@ class FlutterDerivatives():
 
     def get_all_derivatives(self, notation=None):
 
-        # Use default notation if none was provied
-        if notation == None:
-            notation = self.default_notation
-        # If not, check the input notation
-        else:
-            self._check_notation(notation)
+        # If not provided, take the default value
+        notation = self._fill_with_default_notation(notation)
         
         # Return a dictionary with all the derivative data
         return self.flutter_deriv[notation]
@@ -131,6 +127,62 @@ class FlutterDerivatives():
             return self.flutter_deriv['real'][deriv]
         elif deriv in self.flutter_deriv['complex'].keys():
             return self.flutter_deriv['complex'][deriv]
+    
+
+    def get_all_fitted_functions(self, degree=3, notation=None, fixed_start=True):
+
+        # If not provided, take the default value
+        notation = self._fill_with_default_notation(notation)
+
+        # Use get_fitted_function to fit each single derivative
+        functions = {}
+        for deriv in self.flutter_deriv[notation]:
+            functions[deriv] = self.get_fitted_function(deriv, degree=degree, fixed_start=fixed_start)
+        # TODO: Think about returning only non-empty derivatives
+        
+        return functions
+    
+
+    def get_fitted_function(self, deriv, degree=3, fixed_start=True):
+
+        if deriv in self.flutter_deriv['real']:
+            x_data = self.flutter_deriv['real'][deriv]['Ured']
+            y_data = self.flutter_deriv['real'][deriv]['values']
+
+            if len(x_data) > degree:
+
+                params = np.polyfit(x_data, y_data, degree)
+
+                def fitted_function(ured):
+                    output = 0
+                    for param, exp in zip(params, reversed(range(degree+1))):
+                        output += param*ured**exp
+                    return output
+                
+                return fitted_function
+            
+            elif len(x_data) == 0:
+
+                msg = 'There are no calculated values for the specified derivative. '
+                msg += 'Returning a "None" value instead of the fitted function.'
+                warnings.warn(msg)
+
+                return None
+            
+            else:
+
+                msg = 'There are not enough calculated values in this derivative. '
+                msg += 'Returning a "None" value instead of the fitted function.'
+                warnings.warn(msg)
+
+                return None
+        
+        else:
+            # TODO: case with complex input
+            pass
+            
+
+        return function
 
 
     ##### INTERNAL METHODS
@@ -226,6 +278,18 @@ class FlutterDerivatives():
         return omega
 
 
+    def _fill_with_default_notation(self,notation):
+
+        # Use default notation if none was provied
+        if notation == None:
+            notation = self.default_notation
+        # If not, check the input notation
+        else:
+            self._check_notation(notation)
+
+        return notation
+
+
     def _fill_with_default_simulation_parameters(self, **kwargs):
         
         # Preparation of the error message
@@ -284,10 +348,10 @@ class FlutterDerivatives():
 
         # Calculate the amplitude and phase of the motion
         if sim_params['omega'] == None:
-            motion_ampl, phi, omega = sin_util.extract_sinusoidal_parameters(time, motion)
+            motion_ampl, phi, omega = util.extract_sinusoidal_parameters(time, motion)
         else:
             omega = sim_params['omega']
-            motion_ampl, phi = sin_util.extract_sinusoidal_parameters(time, motion, omega=omega)
+            motion_ampl, phi = util.extract_sinusoidal_parameters(time, motion, omega=omega)
 
         # Shift time series to ensure that the motion has no phase
         # (just a pure sinusoidal).
@@ -296,7 +360,7 @@ class FlutterDerivatives():
 
         # Fit the sine+cosine function
         # force = a + b*cos(omega*t) + c*sin(omega*t)
-        a, b, c = sin_util.extract_sinusoidal_parameters(time, force, omega=omega, function='sin_cos')
+        a, b, c = util.extract_sinusoidal_parameters(time, force, omega=omega, function='sin_cos')
 
         # Get the names of the derivatives asociated
         # with this particular motion and force directions
