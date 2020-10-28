@@ -145,24 +145,34 @@ class FlutterDerivatives():
 
     def get_fitted_function(self, deriv, degree=3, fixed_start=True):
 
-        if deriv in self.flutter_deriv['real']:
-            x_data = self.flutter_deriv['real'][deriv]['Ured']
-            y_data = self.flutter_deriv['real'][deriv]['values']
+        # Check that the derivative name is among the available ones
+        self._check_derivative_name(deriv)
 
+        # The polynomials need to be fit in the real notation
+        # (complex notation does not have polynomial shape)
+        # Thus, if the required derivative is in complex notation
+        # it is necessary to get the associated real derivatives
+        if deriv in self.flutter_deriv['complex']:
+            derivs_to_fit = self._get_related_derivatives(deriv)['real']
+        else:
+            derivs_to_fit = [deriv]
+
+        # If a complex derivative is asked, two real derivatives must be fitted
+        params = []
+        for deriv_to_fit in derivs_to_fit:
+
+            # Get derivative points in real notation
+            x_data = self.flutter_deriv['real'][deriv_to_fit]['Ured']
+            y_data = self.flutter_deriv['real'][deriv_to_fit]['values']
+
+            # Check that there is calculated data in the derivative
             if len(x_data) > degree:
 
-                params = np.polyfit(x_data, y_data, degree)
-
-                def fitted_function(ured):
-                    output = 0
-                    for param, exp in zip(params, reversed(range(degree+1))):
-                        output += param*ured**exp
-                    return output
-                
-                return fitted_function
+                # Fit the polynomial
+                params.append(np.polyfit(x_data, y_data, degree))
             
             elif len(x_data) == 0:
-
+                # TODO: The warnings only raise the first time they are called, not again after it
                 msg = 'There are no calculated values for the specified derivative. '
                 msg += 'Returning a "None" value instead of the fitted function.'
                 warnings.warn(msg)
@@ -170,19 +180,58 @@ class FlutterDerivatives():
                 return None
             
             else:
-
+                # TODO: The warnings only raise the first time they are called, not again after it
                 msg = 'There are not enough calculated values in this derivative. '
                 msg += 'Returning a "None" value instead of the fitted function.'
                 warnings.warn(msg)
 
                 return None
         
-        else:
-            # TODO: case with complex input
-            pass
-            
+        # The functions are calculated depending on the notation of the input derivative
+        # If the derivative is real, the function represents a simple polynomial
+        if deriv in self.flutter_deriv['real']:
 
-        return function
+            def real_fitted_function(ured):
+                out = 0
+                for exp, param in zip(reversed(range(degree+1)), params[0]):
+                    out += param*ured**exp
+                return out
+
+            output = real_fitted_function
+
+        # If the derivative is complex, it is necessary to translate the polynomials
+        # of both associated real derivatives into a single complex function.
+        elif deriv in self.flutter_deriv['complex']:
+            
+            def complex_fitted_function(k):
+                
+                # Calculation of the values of the associated real derivatives
+                # The same polynomial, but changing U_red by pi/k
+                real_derivs = []
+                for param_set in params:
+                    real_deriv = 0
+                    print(param_set)
+                    for exp, param in enumerate(param_set):
+                        print(param, exp)
+                        real_deriv += param*(k/np.pi)**exp
+                    real_deriv *= (np.pi/k)**degree
+                    real_derivs.append(real_deriv)
+
+                # Calculation of the complex derivative with both real derivatives
+                complex_deriv = 2/np.pi*(real_derivs[1] + 1j* real_derivs[0])
+
+                # Depending on which derivative is, the relation between complex and
+                # real derivatives can be twice or four times the base one
+                deriv_split = deriv.split('_')
+                for letter in deriv_split[1]:
+                    if letter == 'a':
+                        complex_deriv *= 2
+                
+                return complex_deriv
+                
+            output = complex_fitted_function
+
+        return output
 
 
     ##### INTERNAL METHODS
@@ -393,7 +442,7 @@ class FlutterDerivatives():
             f1_complex = 1
         if f_name == 'moment':
             f2_real = 1/sim_params['B']
-            f2_complex = 2*f1_real
+            f2_complex = 2*f2_real
         else:
             f2_real = 1
             f2_complex = 1
@@ -449,3 +498,29 @@ class FlutterDerivatives():
         derivs_to_calc['complex'] = 'c_' + complex_letter_1 + complex_letter_2
 
         return derivs_to_calc
+
+
+    def _get_related_derivatives(self, deriv):
+        # This function returns a dictionary with all associated derivatives
+        # in the different notations
+
+        # Getting the associated motion and force
+        # The procedure changes depending on the notation of the derivative
+        if deriv in self.flutter_deriv['real']:
+            # TODO: make the function work with real derivs as input
+            pass
+
+        if deriv in self.flutter_deriv['complex']:
+            split_deriv = deriv.split('_')
+            for letter_1, force in zip(['h','a','p'], ['lift','moment','drag']):
+                if letter_1 == split_deriv[1][0]:
+                    f_name = force
+            for letter_2, motion in zip(['h','a','p'], ['heave','pitch','sway']):
+                if letter_2 == split_deriv[1][1]:
+                    m_name = motion
+        
+        # Calculating all derivatives associated with this force-motion combination
+        related_derivs = self._get_derivatives_to_calculate(m_name, f_name)
+
+        return related_derivs
+            
